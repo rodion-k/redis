@@ -37,7 +37,7 @@ if redis.call("exists", lock) == 0 then
         local queued_tokens = redis.call("lrange", queue, 0, -1)
         local push = 1
         local position = 0
-        
+
         for i=1,#queued_tokens do
             if queued_tokens[i] == token then
                 push = 0
@@ -172,6 +172,11 @@ RENEW;
 
                 if ($result < 1) {
                     if ($attempts > 2 && \microtime(true) * 1000 > $timeLimit) {
+                        $lockDump = yield $this->sharedConnection->dump("{$prefix}lock:{$key}");
+                        $queueDump = yield $this->sharedConnection->dump("{$prefix}lock-queue:{$key}");
+
+                        $this->logger->info("Lock contents when acquire failed: lock:{$lockDump}; lock-queue:{$queueDump}");
+
                         // In very rare cases we might not get the lock, but are at the head of the queue and another
                         // client moves us into the lock position. Deleting the token from the queue and afterwards
                         // unlocking solves this. No yield required, because we use the same connection.
